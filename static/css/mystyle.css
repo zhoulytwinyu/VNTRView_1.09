@@ -1,0 +1,17 @@
+.text-sm-9 {
+  font-size: 9pt;
+}
+.text-sm-8 {
+  font-size: 8pt;
+}
+.text-sm-7 {
+  font-size: 7pt;
+}
+.text-sm-6 {
+  font-size: 6pt;
+}
+
+.affix {
+  top:0;
+  z-index:9999;
+}

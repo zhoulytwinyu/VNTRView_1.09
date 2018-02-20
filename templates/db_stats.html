@@ -1,0 +1,937 @@
+<!DOCTYPE html> <!-- html5 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+  <title>VNTR Pipeline</title>
+  <!-- Bootstrap -->
+  <link href="/static/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+  <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+  <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+  <![endif]-->
+  <script type="text/javascript" src="/static/js/jquery-3.3.1.min.js"></script>
+  <script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+  <script type="text/javascript" src="/static/js/underscore-min-1.8.3.js"></script>
+  <script type="text/javascript" src="/static/js/backbone-min-1.3.3.js"></script>
+  <script type="text/javascript" src="/static/js/sprintf-1.1.1.min.js"></script>
+  <script type="text/javascript" src="/static/js/js-cookie-2.2.0.js"></script>
+  <script type="text/javascript" src="/static/js/backbonewidget.js"></script>
+  <link rel="stylesheet" type="text/css" href="/static/css/mystyle.css"/>
+</head>
+<body data-spy="scroll" data-target="#section-navbar" data-offset="1" style="position:relative">
+  <div class="container" id="top">
+    <h1 class="text-right">VNTR Pipeline <small>Boston University</small></h1>
+    <h1 id="db-name"></h1>
+    <div id="main-nav">
+    </div>
+  </div>
+  <div class="container">
+    <h1 id="db_name"></h1>
+    <div class="col-md-8">
+      <div class="panel panel-default text-sm-9" id="Run_parameters">
+        <div class="panel-heading"><b>Run parameters</b></div>
+      </div>
+      <div class="panel panel-default text-sm-9" id="PROFILE_CLUSTERING">
+        <div class="panel-heading"><b>PROFILE CLUSTERING</b></div>
+      </div>
+      <div class="panel panel-default text-sm-9" id="FLANK_ALIGNMENTS">
+        <div class="panel-heading"><b>FLANK ALIGNMENTS</b></div>
+      </div>
+      <div class="panel panel-default text-sm-9" id="PIPELINE_TIME">
+        <div class="panel-heading"><b>PIPELINE TIME</b></div>
+      </div>
+      <div class="panel panel-default text-sm-9" id="Reports">
+        <div class="panel-heading"><b>Reports</b></div>
+      </div>
+    </div>
+    <div class="col-md-4" id="section-navbar">
+    </div>
+  </div>
+
+  <!-- Run_parameters_table template -->
+  <template id="Run_parameters_table_template">
+    <table class="table table-hover table-bordered table-condensed">
+      <tbody>
+        <tr>
+          <td>TRF parameters</td><td id="PARAM_TRF">{PARAM_TRF}</td>
+          <td>PROCLU parameters</td><td id="PARAM_PROCLU">{PARAM_PROCLU}</td>
+        </tr>
+        <tr>
+          <td>Min Support Required</td><td id="N_MIN_SUPPORT">{N_MIN_SUPPORT}</td>
+          <td>Min Flank Required</td><td id="MIN_FLANK_REQUIRED">{MIN_FLANK_REQUIRED}</td>
+        </tr>
+        <tr>
+          <td>MASTER file</td><td><a id="master" href='/{database}/file/master.txt'>{master} href="/{database}/file/master.txt"</a></td>
+          <td>Max Flank Considered</td><td id="MAX_FLANK_CONSIDERED">{MAX_FLANK_CONSIDERED}</td>
+        </tr>
+        <tr>
+          <td>Database</td><td id="database">{database}</td>
+          <td>Fasta Folder</td><td id="FOLDER_FASTA">{FOLDER_FASTA}</td>
+        </tr>
+        <tr>
+          <td>Reads Profiles Folder</td><td id="FOLDER_PROFILES">{FOLDER_PROFILES}</td>
+          <td>Reads Profiles Folder Clean</td><td id="FOLDER_PROFILES_CLEAN">{FOLDER_PROFILES_CLEAN}</td>
+        </tr>
+        <tr>
+          <td>Number of Reads</td><td id="NUMBER_READS">{NUMBER_READS}</td>
+          <td>Reference Seq File</td><td id="FILE_REFERENCE_SEQ">{FILE_REFERENCE_SEQ}</td>
+        </tr>
+        <tr>
+          <td>Reference Folder</td><td id="FOLDER_REFERENCE">{FOLDER_REFERENCE}</td>
+          <td>Reference Profile File</td><td id="FILE_REFERENCE_LEB">{FILE_REFERENCE_LEB}</td>
+        </tr>
+        <tr>
+          <td>Number of Reference TRs<br/>after redundancy, filtering and pat >= 7</td><td id="NUMBER_REF_TRS">{NUMBER_REF_TRS}</td>
+          <td>Ref TRs<br/>after cyclic redundancy</td><td id="NUMBER_REFS_TRS_AFTER_REDUND">{NUMBER_REFS_TRS_AFTER_REDUND}</td>
+        </tr>
+        <tr>
+          <td>Number of TRs in Reads<br/>after spanning and pat >= 7</td><td id="number_trs_ratio">number_trs_ratio={NUMBER_TRS_IN_READS}/{NUMBER_TRS_IN_READS_GE7}</td>
+          <td>TRs in Reads<br/>after cyclic redundancy</td><td id="NUMBER_TRS_IN_READS_AFTER_REDUND">{NUMBER_TRS_IN_READS_AFTER_REDUND}</td>
+        </tr>
+      </tbody>
+    </table>
+  </template>
+  <!-- Run_parameters_table View object -->
+  <script>
+  let RunParametersTableView = Backbone.View.extend({
+    el: "#Run_parameters",
+    template: $("#Run_parameters_table_template").html(),
+    render: function (){
+      let table=$.parseHTML(this.template);
+      let elem;
+      //PARAM_TRF
+      let PARAM_TRF=this.model.get("PARAM_TRF");
+      elem=$("#PARAM_TRF",table);
+      elem.html(PARAM_TRF);
+      elem.removeAttr("id");
+      //PARAM_PROCLU
+      let PARAM_PROCLU=this.model.get("PARAM_PROCLU");
+      elem=$("#PARAM_PROCLU",table);
+      elem.html(PARAM_PROCLU);
+      elem.removeAttr("id");
+      //N_MIN_SUPPORT
+      let N_MIN_SUPPORT=this.model.get("N_MIN_SUPPORT");
+      elem=$("#N_MIN_SUPPORT",table);
+      elem.html(N_MIN_SUPPORT);
+      elem.removeAttr("id");
+      //MIN_FLANK_REQUIRED
+      let MIN_FLANK_REQUIRED=this.model.get("MIN_FLANK_REQUIRED");
+      elem=$("#MIN_FLANK_REQUIRED",table);
+      elem.html(MIN_FLANK_REQUIRED);
+      elem.removeAttr("id");
+      //master href="/{database}/file/master.txt"
+      let master_link="/"+database+"/file/master.txt";
+      elem=$("#master",table);
+      elem.html("master");
+      elem.attr("href",master_link);
+      elem.removeAttr("id");
+      //MAX_FLANK_CONSIDERED
+      let MAX_FLANK_CONSIDERED=this.model.get("MAX_FLANK_CONSIDERED");
+      elem=$("#MAX_FLANK_CONSIDERED",table);
+      elem.html(MAX_FLANK_CONSIDERED);
+      elem.removeAttr("id");
+      //database
+      elem=$("#database",table);
+      elem.html(database);
+      elem.removeAttr("id");
+      //FOLDER_FASTA
+      let FOLDER_FASTA=this.model.get("FOLDER_FASTA");
+      elem=$("#FOLDER_FASTA",table);
+      elem.html(FOLDER_FASTA);
+      elem.removeAttr("id");
+      //FOLDER_PROFILES
+      let FOLDER_PROFILES=this.model.get("FOLDER_PROFILES");
+      elem=$("#FOLDER_PROFILES",table);
+      elem.html(FOLDER_PROFILES);
+      elem.removeAttr("id");
+      //FOLDER_PROFILES_CLEAN
+      let FOLDER_PROFILES_CLEAN=this.model.get("FOLDER_PROFILES_CLEAN");
+      elem=$("#FOLDER_PROFILES_CLEAN",table);
+      elem.html(FOLDER_PROFILES_CLEAN);
+      elem.removeAttr("id");
+      //NUMBER_READS
+      let NUMBER_READS=this.model.get("NUMBER_READS");
+      elem=$("#NUMBER_READS",table);
+      elem.html(NUMBER_READS);
+      elem.removeAttr("id");
+      //FILE_REFERENCE_SEQ
+      let FILE_REFERENCE_SEQ=this.model.get("FILE_REFERENCE_SEQ");
+      elem=$("#FILE_REFERENCE_SEQ",table);
+      elem.html(FILE_REFERENCE_SEQ);
+      elem.removeAttr("id");
+      //FOLDER_REFERENCE
+      let FOLDER_REFERENCE=this.model.get("FOLDER_REFERENCE");
+      elem=$("#FOLDER_REFERENCE",table);
+      elem.html(FOLDER_REFERENCE);
+      elem.removeAttr("id");
+      //FILE_REFERENCE_LEB
+      let FILE_REFERENCE_LEB=this.model.get("FILE_REFERENCE_LEB");
+      elem=$("#FILE_REFERENCE_LEB",table);
+      elem.html(FILE_REFERENCE_LEB);
+      elem.removeAttr("id");
+      //NUMBER_REF_TRS
+      let NUMBER_REF_TRS=this.model.get("NUMBER_REF_TRS");
+      elem=$("#NUMBER_REF_TRS",table);
+      elem.html(NUMBER_REF_TRS);
+      elem.removeAttr("id");
+      //NUMBER_REFS_TRS_AFTER_REDUND
+      let NUMBER_REFS_TRS_AFTER_REDUND=this.model.get("NUMBER_REFS_TRS_AFTER_REDUND");
+      elem=$("#NUMBER_REFS_TRS_AFTER_REDUND",table);
+      elem.html(NUMBER_REFS_TRS_AFTER_REDUND);
+      elem.removeAttr("id");
+      //NUMBER_TRS_IN_READS
+      let NUMBER_TRS_IN_READS=this.model.get("NUMBER_TRS_IN_READS");
+      let NUMBER_TRS_IN_READS_GE7=this.model.get("NUMBER_TRS_IN_READS_GE7");
+      elem=$("#number_trs_ratio",table);
+      elem.html(NUMBER_TRS_IN_READS+"/"+NUMBER_TRS_IN_READS_GE7);
+      elem.removeAttr("id");
+      //NUMBER_TRS_IN_READS_AFTER_REDUND
+      let NUMBER_TRS_IN_READS_AFTER_REDUND=this.model.get("NUMBER_TRS_IN_READS_AFTER_REDUND");
+      elem=$("#NUMBER_TRS_IN_READS_AFTER_REDUND",table);
+      elem.html(NUMBER_TRS_IN_READS_AFTER_REDUND);
+      elem.removeAttr("id");
+      this.$el.append(table);
+    }
+  });
+  </script>
+  <!-- PROFILE_CLUSTERING_table template -->
+  <template id="PROFILE_CLUSTERING_table_template">
+    <table class="table table-hover table-bordered table-condensed">
+      <tbody>
+        <tr>
+          <td>Number of clusters after joining PROCLU clusters</td>
+          <td class="text-right" id="CLUST_NUMBER_OF_PROCLU_CLUSTERS">{CLUST_NUMBER_OF_PROCLU_CLUSTERS}</td>
+        </tr>
+        <tr>
+          <td>Number of clusters with exact pattern (patsize less than 7)</td>
+          <td class="text-right" id="CLUST_NUMBER_OF_EXACTPAT_CLUSTERS">{CLUST_NUMBER_OF_EXACTPAT_CLUSTERS}</td>
+        </tr>
+        <tr>
+          <td>Number of ref TRs clustered</td>
+          <td class="text-right" id="CLUST_NUMBER_OF_REF_REPS_IN_CLUSTERS">{CLUST_NUMBER_OF_REF_REPS_IN_CLUSTERS}</td>
+        </tr>
+        <tr>
+          <td>Number of read TRs clustered</td>
+          <td class="text-right" id="CLUST_NUMBER_OF_READ_REPS_IN_CLUSTERS">{CLUST_NUMBER_OF_READ_REPS_IN_CLUSTERS}</td></tr>
+        <tr>
+          <td>Total Clusters</td>
+          <td class="text-right" id="totClusters">{totClusters}={CLUST_NUMBER_OF_PROCLU_CLUSTERS}+{CLUST_NUMBER_OF_EXACTPAT_CLUSTERS}</td>
+          </tr>
+        <tr>
+          <td>Total TRs clustered</td>
+          <td class="text-right" id="totReps">{totReps}={CLUST_NUMBER_OF_REF_REPS_IN_CLUSTERS}+{CLUST_NUMBER_OF_READ_REPS_IN_CLUSTERS}</td>
+          </tr>
+        <tr>
+          <td>Largest number of TRs in cluster</td>
+          <td class="text-right" id="CLUST_LARGEST_NUMBER_OF_TRS_IN_PROCLU_CLUSTER">{CLUST_LARGEST_NUMBER_OF_TRS_IN_PROCLU_CLUSTER}</td>
+          </tr>
+        <tr>
+          <td>Largest number of Ref TRs in cluster</td>
+          <td class="text-right" id="CLUST_LARGEST_NUMBER_OF_REFS_IN_PROCLU_CLUSTER">{CLUST_LARGEST_NUMBER_OF_REFS_IN_PROCLU_CLUSTER}</td>
+          </tr>
+        <tr>
+          <td>Largest cluster pattern range</td>
+          <td class="text-right" id="CLUST_LARGEST_PATRANGE_IN_PROCLU_CLUSTER">{CLUST_LARGEST_PATRANGE_IN_PROCLU_CLUSTER}%</td>
+          </tr>
+        <tr>
+          <td>Number of reference TRs with predicted span1 copy number variability</td>
+          <td class="text-right" id="CLUST_NUMBER_OF_REFS_WITH_PREDICTED_VNTR">{CLUST_NUMBER_OF_REFS_WITH_PREDICTED_VNTR}</td>
+          </tr>
+        <tr>
+          <td>Number of clusters containing at least 1 TR with predicted span1 copy number variability</td>
+          <td class="text-right" id="CLUST_NUMBER_OF_CLUSTERS_WITH_PREDICTED_VNTR">{CLUST_NUMBER_OF_CLUSTERS_WITH_PREDICTED_VNTR}</td>
+          </tr>
+        <tr>
+          <td>Number of reference TRs with predicted span2 copy number variability</td>
+          <td class="text-right" id="NUMBER_REFS_VNTR_SPAN_N">{NUMBER_REFS_VNTR_SPAN_N}</td>
+        </tr>
+      </tbody>
+    </table>
+  </template>
+  <!-- PROFILE_CLUSTERING_table View object -->
+  <script>
+  let ProfileClusteringTableView = Backbone.View.extend({
+    el: "#PROFILE_CLUSTERING",
+    template: $("#PROFILE_CLUSTERING_table_template").html(),
+    render: function (){
+      let table=$.parseHTML(this.template);
+      let elem;
+      //CLUST_NUMBER_OF_PROCLU_CLUSTERS
+      let CLUST_NUMBER_OF_PROCLU_CLUSTERS=this.model.get("CLUST_NUMBER_OF_PROCLU_CLUSTERS");
+      elem=$("#CLUST_NUMBER_OF_PROCLU_CLUSTERS",table);
+      elem.html(CLUST_NUMBER_OF_PROCLU_CLUSTERS);
+      elem.removeAttr("id");
+      //CLUST_NUMBER_OF_EXACTPAT_CLUSTERS
+      let CLUST_NUMBER_OF_EXACTPAT_CLUSTERS=this.model.get("CLUST_NUMBER_OF_EXACTPAT_CLUSTERS");
+      elem=$("#CLUST_NUMBER_OF_EXACTPAT_CLUSTERS",table);
+      elem.html(CLUST_NUMBER_OF_EXACTPAT_CLUSTERS);
+      elem.removeAttr("id");
+      //CLUST_NUMBER_OF_REF_REPS_IN_CLUSTERS
+      let CLUST_NUMBER_OF_REF_REPS_IN_CLUSTERS=this.model.get("CLUST_NUMBER_OF_REF_REPS_IN_CLUSTERS");
+      elem=$("#CLUST_NUMBER_OF_REF_REPS_IN_CLUSTERS",table);
+      elem.html(CLUST_NUMBER_OF_REF_REPS_IN_CLUSTERS);
+      elem.removeAttr("id");
+      //CLUST_NUMBER_OF_READ_REPS_IN_CLUSTERS
+      let CLUST_NUMBER_OF_READ_REPS_IN_CLUSTERS=this.model.get("CLUST_NUMBER_OF_READ_REPS_IN_CLUSTERS");
+      elem=$("#CLUST_NUMBER_OF_READ_REPS_IN_CLUSTERS",table);
+      elem.html(CLUST_NUMBER_OF_READ_REPS_IN_CLUSTERS);
+      elem.removeAttr("id");
+      //totClusters=CLUST_NUMBER_OF_PROCLU_CLUSTERS+CLUST_NUMBER_OF_EXACTPAT_CLUSTERS
+      let totClusters=CLUST_NUMBER_OF_PROCLU_CLUSTERS+CLUST_NUMBER_OF_EXACTPAT_CLUSTERS;
+      elem=$("#totClusters",table);
+      elem.html(totClusters);
+      elem.removeAttr("id");
+      //totReps=CLUST_NUMBER_OF_REF_REPS_IN_CLUSTERS+CLUST_NUMBER_OF_READ_REPS_IN_CLUSTERS
+      let totReps=CLUST_NUMBER_OF_REF_REPS_IN_CLUSTERS+CLUST_NUMBER_OF_READ_REPS_IN_CLUSTERS;
+      elem=$("#totReps",table);
+      elem.html(totReps);
+      elem.removeAttr("id");
+      //CLUST_LARGEST_NUMBER_OF_TRS_IN_PROCLU_CLUSTER
+      let CLUST_LARGEST_NUMBER_OF_TRS_IN_PROCLU_CLUSTER=this.model.get("CLUST_LARGEST_NUMBER_OF_TRS_IN_PROCLU_CLUSTER");
+      elem=$("#CLUST_LARGEST_NUMBER_OF_TRS_IN_PROCLU_CLUSTER",table);
+      elem.html(CLUST_LARGEST_NUMBER_OF_TRS_IN_PROCLU_CLUSTER);
+      elem.removeAttr("id");
+      //CLUST_LARGEST_NUMBER_OF_REFS_IN_PROCLU_CLUSTER
+      let CLUST_LARGEST_NUMBER_OF_REFS_IN_PROCLU_CLUSTER=this.model.get("CLUST_LARGEST_NUMBER_OF_REFS_IN_PROCLU_CLUSTER");
+      elem=$("#CLUST_LARGEST_NUMBER_OF_REFS_IN_PROCLU_CLUSTER",table);
+      elem.html(CLUST_LARGEST_NUMBER_OF_REFS_IN_PROCLU_CLUSTER);
+      elem.removeAttr("id");
+      //CLUST_LARGEST_PATRANGE_IN_PROCLU_CLUSTER
+      let CLUST_LARGEST_PATRANGE_IN_PROCLU_CLUSTER=this.model.get("CLUST_LARGEST_PATRANGE_IN_PROCLU_CLUSTER");
+      elem=$("#CLUST_LARGEST_PATRANGE_IN_PROCLU_CLUSTER",table);
+      elem.html(CLUST_LARGEST_PATRANGE_IN_PROCLU_CLUSTER+"%");
+      elem.removeAttr("id");
+      //CLUST_NUMBER_OF_REFS_WITH_PREDICTED_VNTR
+      let CLUST_NUMBER_OF_REFS_WITH_PREDICTED_VNTR=this.model.get("CLUST_NUMBER_OF_REFS_WITH_PREDICTED_VNTR");
+      elem=$("#CLUST_NUMBER_OF_REFS_WITH_PREDICTED_VNTR",table);
+      elem.html(CLUST_NUMBER_OF_REFS_WITH_PREDICTED_VNTR);
+      elem.removeAttr("id");
+      //CLUST_NUMBER_OF_CLUSTERS_WITH_PREDICTED_VNTR
+      let CLUST_NUMBER_OF_CLUSTERS_WITH_PREDICTED_VNTR=this.model.get("CLUST_NUMBER_OF_CLUSTERS_WITH_PREDICTED_VNTR");
+      elem=$("#CLUST_NUMBER_OF_CLUSTERS_WITH_PREDICTED_VNTR",table);
+      elem.html(CLUST_NUMBER_OF_CLUSTERS_WITH_PREDICTED_VNTR);
+      elem.removeAttr("id");
+      //NUMBER_REFS_VNTR_SPAN_N
+      let NUMBER_REFS_VNTR_SPAN_N=this.model.get("NUMBER_REFS_VNTR_SPAN_N");
+      elem=$("#NUMBER_REFS_VNTR_SPAN_N",table);
+      elem.html(NUMBER_REFS_VNTR_SPAN_N);
+      elem.removeAttr("id");
+      this.$el.append(table);
+    }
+  });
+  </script>
+  <!-- FLANK_ALIGNMENTS_table template -->
+  <template id="FLANK_ALIGNMENTS_table_template">
+    <table class="table table-hover table-bordered table-condensed">
+      <tbody>
+        <tr>
+          <td>Number of references in a cluster with only one reference</td>
+          <td class="text-right" id="NUMBER_REFS_SINGLE_REF_CLUSTER">{NUMBER_REFS_SINGLE_REF_CLUSTER}</td>
+        </tr>
+        <tr>
+          <td>Number of references in a cluster with only one reference with flanks mapped</td>
+          <td class="text-right" id="NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_READS_MAPPED">{NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_READS_MAPPED}</td>
+        </tr>
+        <tr>
+          <td>Number of references in a cluster with only one reference with no flanks mapped</td>
+          <td class="text-right" id="NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_NO_READS_MAPPED">{NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_NO_READS_MAPPED}</td>
+        </tr>
+        <tr>
+          <td>READ-REF PAIRS MEETING FLANKING CRITERIA</td>
+          <td class="text-right" id="NUMBER_MAPPED">{NUMBER_MAPPED}</td>
+        </tr>
+        <tr>
+          <td>READ_REF PAIRS OVER PROFILE SCORE CUTOFF (some inferior scores removed)</td>
+          <td class="text-right" id="RANK_EDGES_OVERCUTOFF">{RANK_EDGES_OVERCUTOFF}</td></tr>
+        <tr>
+          <td>RANK_REMOVED_NOT_TO_BEST_REF</td>
+          <td class="text-right" id="RANK_REMOVED_SAMEREF">{RANK_REMOVED_SAMEREF}</td></tr>
+        <tr>
+          <td>RANK_REMOVED_TRS_WHEN_CAME_FROM_SAME_READ</td>
+          <td class="text-right" id="RANK_REMOVED_SAMESEQ">{RANK_REMOVED_SAMESEQ}</td></tr>
+        <tr>
+          <td>RANK_REMOVED_PCRDUP</td>
+          <td class="text-right" id="RANK_REMOVED_PCRDUP">{RANK_REMOVED_PCRDUP}</td></tr>
+        <tr>
+          <td>FINAL RANK ENTRIES</td>
+          <td class="text-right" id="NUMBER_RANK">{NUMBER_RANK}: waringing if {NUMBER_RANK}!={RANK_EDGES_OVERCUTOFF}-{RANK_REMOVED_SAMEREF}-{RANK_REMOVED_SAMESEQ}-{RANK_REMOVED_PCRDUP}</td>
+        </tr>
+        <tr>
+          <td>READ-REF PAIRS MEETING FLANKING CRITERIA (some inferior scores removed)</td>
+          <td class="text-right" id="RANKFLANK_EDGES_INSERTED">{RANKFLANK_EDGES_INSERTED}</td>
+        </tr>
+        <tr>
+          <td>RANKFLANK_REMOVED_NOT_TO_BEST_REF</td>
+          <td class="text-right" id="RANKFLANK_REMOVED_SAMEREF">{RANKFLANK_REMOVED_SAMEREF}</td>
+        </tr>
+        <tr>
+          <td>RANKFLANK_REMOVED_TRS_WHEN_CAME_FROM_SAME_READ</td>
+          <td class="text-right" id="RANKFLANK_REMOVED_SAMESEQ">{RANKFLANK_REMOVED_SAMESEQ}</td>
+        </tr>
+        <tr>
+          <td>RANKFLANK_REMOVED_PCRDUP</td>
+          <td class="text-right" id="RANKFLANK_REMOVED_PCRDUP">{RANKFLANK_REMOVED_PCRDUP}</td>
+        </tr>
+        <tr>
+          <td>FINAL RANKFLANK ENTRIES</td>
+          <td class="text-right" id="NUMBER_RANKFLANK">{NUMBER_RANKFLANK}: waringing if {NUMBER_RANKFLANK}!={RANKFLANK_EDGES_INSERTED}-{RANKFLANK_REMOVED_SAMESEQ}-{RANKFLANK_REMOVED_SAMESEQ}-{RANKFLANK_REMOVED_PCRDUP}</td>
+        </tr>
+        <tr>
+          <td>Intersection of Rank and Rankflank tables</td>
+          <td class="text-right" id="INTERSECT_RANK_AND_RANKFLANK_BEFORE_PCR">{INTERSECT_RANK_AND_RANKFLANK_BEFORE_PCR}</td>
+        </tr>
+        <tr>
+          <td>Intersection of Rank and Rankflank tables (after PCR DUP)</td>
+          <td class="text-right" id="INTERSECT_RANK_AND_RANKFLANK">{INTERSECT_RANK_AND_RANKFLANK}</td>
+        </tr>
+        <tr>
+          <td>BBB (after removal of ties)</td>
+          <td class="text-right" id="BBB_WITH_MAP_DUPS">{BBB_WITH_MAP_DUPS}</td>
+        </tr>
+        <tr>
+          <td>BBB (after removing far located refs map duplicates)</td>
+          <td class="text-right" id="BBB">{BBB}</td>
+        </tr>
+      </tbody>
+    </table>
+  </template>
+  <!-- FLANK_ALIGNMENTS_table View object -->
+  <script>
+  let FlankAlignmentsTableView = Backbone.View.extend({
+    el: "#FLANK_ALIGNMENTS",
+    template: $("#FLANK_ALIGNMENTS_table_template").html(),
+    render: function (){
+      let table=$.parseHTML(this.template);
+      let elem;
+      //NUMBER_REFS_SINGLE_REF_CLUSTER
+      let NUMBER_REFS_SINGLE_REF_CLUSTER=this.model.get("NUMBER_REFS_SINGLE_REF_CLUSTER");
+      elem=$("#NUMBER_REFS_SINGLE_REF_CLUSTER",table);
+      elem.html(NUMBER_REFS_SINGLE_REF_CLUSTER);
+      elem.removeAttr("id");
+      //NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_READS_MAPPED
+      let NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_READS_MAPPED=this.model.get("NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_READS_MAPPED");
+      elem=$("#NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_READS_MAPPED",table);
+      elem.html(NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_READS_MAPPED);
+      elem.removeAttr("id");
+      //NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_NO_READS_MAPPED
+      let NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_NO_READS_MAPPED=this.model.get("NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_NO_READS_MAPPED");
+      elem=$("#NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_NO_READS_MAPPED",table);
+      elem.html(NUMBER_REFS_SINGLE_REF_CLUSTER_WITH_NO_READS_MAPPED);
+      elem.removeAttr("id");
+      //NUMBER_MAPPED
+      let NUMBER_MAPPED=this.model.get("NUMBER_MAPPED");
+      elem=$("#NUMBER_MAPPED",table);
+      elem.html(NUMBER_MAPPED);
+      elem.removeAttr("id");
+      //RANK_EDGES_OVERCUTOFF
+      let RANK_EDGES_OVERCUTOFF=this.model.get("RANK_EDGES_OVERCUTOFF");
+      elem=$("#RANK_EDGES_OVERCUTOFF",table);
+      elem.html(RANK_EDGES_OVERCUTOFF);
+      elem.removeAttr("id");
+      //RANK_REMOVED_SAMEREF
+      let RANK_REMOVED_SAMEREF=this.model.get("RANK_REMOVED_SAMEREF");
+      elem=$("#RANK_REMOVED_SAMEREF",table);
+      elem.html(RANK_REMOVED_SAMEREF);
+      elem.removeAttr("id");
+      //RANK_REMOVED_SAMESEQ
+      let RANK_REMOVED_SAMESEQ=this.model.get("RANK_REMOVED_SAMESEQ");
+      elem=$("#RANK_REMOVED_SAMESEQ",table);
+      elem.html(RANK_REMOVED_SAMESEQ);
+      elem.removeAttr("id");
+      //RANK_REMOVED_PCRDUP
+      let RANK_REMOVED_PCRDUP=this.model.get("RANK_REMOVED_PCRDUP");
+      elem=$("#RANK_REMOVED_PCRDUP",table);
+      elem.html(RANK_REMOVED_PCRDUP);
+      elem.removeAttr("id");
+      //NUMBER_RANK: waringing if NUMBER_RANK!=RANK_EDGES_OVERCUTOFF-RANK_REMOVED_SAMEREF-RANK_REMOVED_SAMESEQ-RANK_REMOVED_PCRDUP
+      let NUMBER_RANK=this.model.get("NUMBER_RANK");
+      elem=$("#NUMBER_RANK",table);
+      elem.html(NUMBER_RANK);
+      if ( NUMBER_RANK!=null && NUMBER_RANK != RANK_EDGES_OVERCUTOFF-RANK_REMOVED_SAMEREF-RANK_REMOVED_SAMESEQ-RANK_REMOVED_PCRDUP) {
+        elem.append("<div class=\"alert alert-danger\" role=\"alert\RANK_EDGES_OVERCUTOF\"><strong>Warning!</strong>NUMBER_RANK!=RANK_EDGES_OVERCUTOFF-RANK_REMOVED_SAMEREF-RANK_REMOVED_SAMESEQ-RANK_REMOVED_PCRDUP</div>");
+      }
+      elem.removeAttr("id");
+      //RANKFLANK_EDGES_INSERTED
+      let RANKFLANK_EDGES_INSERTED=this.model.get("RANKFLANK_EDGES_INSERTED");
+      elem=$("#RANKFLANK_EDGES_INSERTED",table);
+      elem.html(RANKFLANK_EDGES_INSERTED);
+      elem.removeAttr("id");
+      //RANKFLANK_REMOVED_SAMEREF
+      let RANKFLANK_REMOVED_SAMEREF=this.model.get("RANKFLANK_REMOVED_SAMEREF");
+      elem=$("#RANKFLANK_REMOVED_SAMEREF",table);
+      elem.html(RANKFLANK_REMOVED_SAMEREF);
+      elem.removeAttr("id");
+      //RANKFLANK_REMOVED_SAMESEQ
+      let RANKFLANK_REMOVED_SAMESEQ=this.model.get("RANKFLANK_REMOVED_SAMESEQ");
+      elem=$("#RANKFLANK_REMOVED_SAMESEQ",table);
+      elem.html(RANKFLANK_REMOVED_SAMESEQ);
+      elem.removeAttr("id");
+      //RANKFLANK_REMOVED_PCRDUP
+      let RANKFLANK_REMOVED_PCRDUP=this.model.get("RANKFLANK_REMOVED_PCRDUP");
+      elem=$("#RANKFLANK_REMOVED_PCRDUP",table);
+      elem.html(RANKFLANK_REMOVED_PCRDUP);
+      elem.removeAttr("id");
+      //NUMBER_RANKFLANK: waringing if NUMBER_RANKFLANK!=RANKFLANK_EDGES_INSERTED-RANKFLANK_REMOVED_SAMESEQ-RANKFLANK_REMOVED_SAMESEQ-RANKFLANK_REMOVED_PCRDUP
+      let NUMBER_RANKFLANK=this.model.get("NUMBER_RANKFLANK");
+      elem=$("#NUMBER_RANKFLANK",table);
+      elem.html(NUMBER_RANKFLANK);
+      if ( NUMBER_RANKFLANK!=null && NUMBER_RANKFLANK != RANKFLANK_EDGES_INSERTED-RANKFLANK_REMOVED_SAMEREF-RANKFLANK_REMOVED_SAMESEQ-RANKFLANK_REMOVED_PCRDUP) {
+        elem.append("<div class=\"alert alert-danger\" role=\"alert\RANK_EDGES_OVERCUTOF\"><strong>Warning!</strong>NUMBER_RANKFLANK != RANKFLANK_EDGES_INSERTED-RANKFLANK_REMOVED_SAMEREF-RANKFLANK_REMOVED_SAMESEQ-RANKFLANK_REMOVED_PCRDUP</div>");
+      }
+      elem.removeAttr("id");
+      //INTERSECT_RANK_AND_RANKFLANK_BEFORE_PCR
+      let INTERSECT_RANK_AND_RANKFLANK_BEFORE_PCR=this.model.get("INTERSECT_RANK_AND_RANKFLANK_BEFORE_PCR");
+      elem=$("#INTERSECT_RANK_AND_RANKFLANK_BEFORE_PCR",table);
+      elem.html(INTERSECT_RANK_AND_RANKFLANK_BEFORE_PCR);
+      elem.removeAttr("id");
+      //INTERSECT_RANK_AND_RANKFLANK
+      let INTERSECT_RANK_AND_RANKFLANK=this.model.get("INTERSECT_RANK_AND_RANKFLANK");
+      elem=$("#INTERSECT_RANK_AND_RANKFLANK",table);
+      elem.html(INTERSECT_RANK_AND_RANKFLANK);
+      elem.removeAttr("id");
+      //BBB_WITH_MAP_DUPS
+      let BBB_WITH_MAP_DUPS=this.model.get("BBB_WITH_MAP_DUPS");
+      elem=$("#BBB_WITH_MAP_DUPS",table);
+      elem.html(BBB_WITH_MAP_DUPS);
+      elem.removeAttr("id");
+      //BBB
+      let BBB=this.model.get("BBB");
+      elem=$("#BBB",table);
+      elem.html(BBB);
+      elem.removeAttr("id");
+      this.$el.append(table);
+    }
+  });
+  </script>
+  <!-- PIPELINE_TIME_table template -->
+  <template id="PIPELINE_TIME_table_template">
+    <table class="table table-hover table-bordered table-condensed">
+      <tbody>
+        <tr>
+          <td>Step0 (MySql DB Create)</td>
+          <td id="TIME_MYSQLCREATE">{TIME_MYSQLCREATE} ({DATE_MYSQLCREATE})</td>
+        </tr>
+        <tr>
+          <td>Step1 (TRF)</td>
+          <td id="TIME_TRF">{TIME_TRF} ({DATE_TRF})</td></tr>
+        <tr>
+          <td>Step2 (Renumbering)</td>
+          <td id="TIME_RENUMB">{TIME_RENUMB} ({DATE_RENUMB})</td>
+        </tr>
+        <tr>
+          <td>Step3 (Cyc. Redund.)</td>
+          <td id="TIME_REDUND">{TIME_REDUND} ({DATE_REDUND})</td>
+        </tr>
+        <tr>
+          <td>Step4 (PROCLU)</td>
+          <td id="TIME_PROCLU">{TIME_PROCLU} ({DATE_PROCLU})</td>
+        </tr>
+        <tr>
+          <td>Step5 (Join clusters)</td>
+          <td id="TIME_JOINCLUST">{TIME_JOINCLUST} ({DATE_JOINCLUST})</td>
+        </tr>
+        <tr>
+          <td>Step7 (DB insert Ref TRs)</td>
+          <td id="TIME_DB_INSTERT_REFS">{TIME_DB_INSTERT_REFS} ({DATE_DB_INSTERT_REFS})</td>
+        </tr>
+        <tr>
+          <td>Step8 (DB insert Read TRs)</td>
+          <td id="TIME_DB_INSTERT_READS">{TIME_DB_INSTERT_READS} ({DATE_DB_INSTERT_READS})</td>
+        </tr>
+        <tr>
+          <td>Step9 (Write Flanks)</td>
+          <td id="TIME_WRITE_FLANKS">{TIME_WRITE_FLANKS} ({DATE_WRITE_FLANKS})</td>
+        </tr>
+        <tr>
+          <td>Step10 (Map Refs to Reads using Flanks)</td>
+          <td id="TIME_MAP_FLANKS">{TIME_MAP_FLANKS} ({DATE_MAP_FLANKS})</td>
+        </tr>
+        <tr>
+          <td>Step11 (Map Refs to Refs using Flanks)</td>
+          <td id="TIME_MAP_REFFLANKS">{TIME_MAP_REFFLANKS} ({DATE_MAP_REFFLANKS})</td>
+        </tr>
+        <tr>
+          <td>Step12 (Map and Flank Rank information db insert)</td>
+          <td id="TIME_MAP_INSERT">{TIME_MAP_INSERT} ({DATE_MAP_INSERT})</td>
+        </tr>
+        <tr>
+          <td>Step13 (Calculate Ref to Read Profile Scores)</td>
+          <td id="TIME_EDGES">{TIME_EDGES} ({DATE_EDGES})</td>
+        </tr>
+        <tr>
+          <td>Step14 (Generating index files for PCRDUP step)</td>
+          <td id="TIME_INDEX_PCR">{TIME_INDEX_PCR} ({DATE_INDEX_PCR})</td>
+        </tr>
+        <tr>
+          <td>Step15 (Calculating PCR duplciates)</td>
+          <td id="TIME_PCR_DUP">{TIME_PCR_DUP} ({DATE_PCR_DUP})</td>
+        </tr>
+        <tr>
+          <td>Step16 (Calculating mapped duplciates)</td>
+          <td id="TIME_MAP_DUP">{TIME_MAP_DUP} ({DATE_MAP_DUP})</td>
+        </tr>
+        <tr>
+          <td>Step17 (VNTR prediction)</td>
+          <td id="TIME_VNTR_PREDICT">{TIME_VNTR_PREDICT} ({DATE_VNTR_PREDICT})</td>
+        </tr>
+        <tr>
+          <td>Step18 (Assembly Req calculation)</td>
+          <td id="TIME_ASSEMBLYREQ">{TIME_ASSEMBLYREQ} ({DATE_ASSEMBLYREQ})</td>
+        </tr>
+        <tr>
+          <td>Step19 (Generate Reports)</td>
+          <td id="TIME_REPORTS">{TIME_REPORTS} ({DATE_REPORTS})</td>
+        </tr>
+        <tr>
+          <td>TOTAL</td>
+          <td id="total_time">{total_time}</td>
+        </tr>
+      </tbody>
+    </table>
+  </template>
+  <!-- PIPELINE_TIME_table View object -->
+  <script>
+  function sec2clock(seconds){
+    hour=Math.floor(seconds/3600);
+    minute=Math.floor(seconds%3600/60);
+    second=seconds%60;
+    return sprintf("%02d:%02d:%02d",hour,minute,second);
+  }
+  let PipelineTimeTableView = Backbone.View.extend({
+    el: "#PIPELINE_TIME",
+    template: $("#PIPELINE_TIME_table_template").html(),
+    render: function (){
+      let table=$.parseHTML(this.template);
+      let elem;
+      //TIME_MYSQLCREATE
+      let TIME_MYSQLCREATE=this.model.get("TIME_MYSQLCREATE");
+      let DATE_MYSQLCREATE=this.model.get("DATE_MYSQLCREATE");
+      elem=$("#TIME_MYSQLCREATE",table);
+      elem.html(sec2clock(TIME_MYSQLCREATE)+" ("+DATE_MYSQLCREATE+")");
+      elem.removeAttr("id");
+      //TIME_TRF
+      let TIME_TRF=this.model.get("TIME_TRF");
+      let DATE_TRF=this.model.get("DATE_TRF");
+      elem=$("#TIME_TRF",table);
+      elem.html(sec2clock(TIME_TRF)+" ("+DATE_TRF+")");
+      elem.removeAttr("id");
+      //TIME_RENUMB
+      let TIME_RENUMB=this.model.get("TIME_RENUMB");
+      let DATE_RENUMB=this.model.get("DATE_RENUMB");
+      elem=$("#TIME_RENUMB",table);
+      elem.html(sec2clock(TIME_RENUMB)+" ("+DATE_RENUMB+")");
+      elem.removeAttr("id");
+      //TIME_REDUND
+      let TIME_REDUND=this.model.get("TIME_REDUND");
+      let DATE_REDUND=this.model.get("DATE_REDUND");
+      elem=$("#TIME_REDUND",table);
+      elem.html(sec2clock(TIME_REDUND)+" ("+DATE_REDUND+")");
+      elem.removeAttr("id");
+      //TIME_PROCLU
+      let TIME_PROCLU=this.model.get("TIME_PROCLU");
+      let DATE_PROCLU=this.model.get("DATE_PROCLU");
+      elem=$("#TIME_PROCLU",table);
+      elem.html(sec2clock(TIME_PROCLU)+" ("+DATE_PROCLU+")");
+      elem.removeAttr("id");
+      //TIME_JOINCLUST
+      let TIME_JOINCLUST=this.model.get("TIME_JOINCLUST");
+      let DATE_JOINCLUST=this.model.get("DATE_JOINCLUST");
+      elem=$("#TIME_JOINCLUST",table);
+      elem.html(sec2clock(TIME_JOINCLUST)+" ("+DATE_JOINCLUST+")");
+      elem.removeAttr("id");
+      //TIME_DB_INSTERT_REFS
+      let TIME_DB_INSTERT_REFS=this.model.get("TIME_DB_INSTERT_REFS");
+      let DATE_DB_INSTERT_REFS=this.model.get("DATE_DB_INSTERT_REFS");
+      elem=$("#TIME_DB_INSTERT_REFS",table);
+      elem.html(sec2clock(TIME_DB_INSTERT_REFS)+" ("+DATE_DB_INSTERT_REFS+")");
+      elem.removeAttr("id");
+      //TIME_DB_INSTERT_READS
+      let TIME_DB_INSTERT_READS=this.model.get("TIME_DB_INSTERT_READS");
+      let DATE_DB_INSTERT_READS=this.model.get("DATE_DB_INSTERT_READS");
+      elem=$("#TIME_DB_INSTERT_READS",table);
+      elem.html(sec2clock(TIME_DB_INSTERT_READS)+" ("+DATE_DB_INSTERT_READS+")");
+      elem.removeAttr("id");
+      //TIME_WRITE_FLANKS
+      let TIME_WRITE_FLANKS=this.model.get("TIME_WRITE_FLANKS");
+      let DATE_WRITE_FLANKS=this.model.get("DATE_WRITE_FLANKS");
+      elem=$("#TIME_WRITE_FLANKS",table);
+      elem.html(sec2clock(TIME_WRITE_FLANKS)+" ("+DATE_WRITE_FLANKS+")");
+      elem.removeAttr("id");
+      //TIME_MAP_FLANKS
+      let TIME_MAP_FLANKS=this.model.get("TIME_MAP_FLANKS");
+      let DATE_MAP_FLANKS=this.model.get("DATE_MAP_FLANKS");
+      elem=$("#TIME_MAP_FLANKS",table);
+      elem.html(sec2clock(TIME_MAP_FLANKS)+" ("+DATE_MAP_FLANKS+")");
+      elem.removeAttr("id");
+      //TIME_MAP_REFFLANKS
+      let TIME_MAP_REFFLANKS=this.model.get("TIME_MAP_REFFLANKS");
+      let DATE_MAP_REFFLANKS=this.model.get("DATE_MAP_REFFLANKS");
+      elem=$("#TIME_MAP_REFFLANKS",table);
+      elem.html(sec2clock(TIME_MAP_REFFLANKS)+" ("+DATE_MAP_REFFLANKS+")");
+      elem.removeAttr("id");
+      //TIME_MAP_INSERT
+      let TIME_MAP_INSERT=this.model.get("TIME_MAP_INSERT");
+      let DATE_MAP_INSERT=this.model.get("DATE_MAP_INSERT");
+      elem=$("#TIME_MAP_INSERT",table);
+      elem.html(sec2clock(TIME_MAP_INSERT)+" ("+DATE_MAP_INSERT+")");
+      elem.removeAttr("id");
+      //TIME_EDGES
+      let TIME_EDGES=this.model.get("TIME_EDGES");
+      let DATE_EDGES=this.model.get("DATE_EDGES");
+      elem=$("#TIME_EDGES",table);
+      elem.html(sec2clock(TIME_EDGES)+" ("+DATE_EDGES+")");
+      elem.removeAttr("id");
+      //TIME_INDEX_PCR
+      let TIME_INDEX_PCR=this.model.get("TIME_INDEX_PCR");
+      let DATE_INDEX_PCR=this.model.get("DATE_INDEX_PCR");
+      elem=$("#TIME_INDEX_PCR",table);
+      elem.html(sec2clock(TIME_INDEX_PCR)+" ("+DATE_INDEX_PCR+")");
+      elem.removeAttr("id");
+      //TIME_PCR_DUP
+      let TIME_PCR_DUP=this.model.get("TIME_PCR_DUP");
+      let DATE_PCR_DUP=this.model.get("DATE_PCR_DUP");
+      elem=$("#TIME_PCR_DUP",table);
+      elem.html(sec2clock(TIME_PCR_DUP)+" ("+DATE_PCR_DUP+")");
+      elem.removeAttr("id");
+      //TIME_MAP_DUP
+      let TIME_MAP_DUP=this.model.get("TIME_MAP_DUP");
+      let DATE_MAP_DUP=this.model.get("DATE_MAP_DUP");
+      elem=$("#TIME_MAP_DUP",table);
+      elem.html(sec2clock(TIME_MAP_DUP)+" ("+DATE_MAP_DUP+")");
+      elem.removeAttr("id");
+      //TIME_VNTR_PREDICT
+      let TIME_VNTR_PREDICT=this.model.get("TIME_VNTR_PREDICT");
+      let DATE_VNTR_PREDICT=this.model.get("DATE_VNTR_PREDICT");
+      elem=$("#TIME_VNTR_PREDICT",table);
+      elem.html(sec2clock(TIME_VNTR_PREDICT)+" ("+DATE_VNTR_PREDICT+")");
+      elem.removeAttr("id");
+      //TIME_ASSEMBLYREQ
+      let TIME_ASSEMBLYREQ=this.model.get("TIME_ASSEMBLYREQ");
+      let DATE_ASSEMBLYREQ=this.model.get("DATE_ASSEMBLYREQ");
+      elem=$("#TIME_ASSEMBLYREQ",table);
+      elem.html(sec2clock(TIME_ASSEMBLYREQ)+" ("+DATE_ASSEMBLYREQ+")");
+      elem.removeAttr("id");
+      //TIME_REPORTS
+      let TIME_REPORTS=this.model.get("TIME_REPORTS");
+      let DATE_REPORTS=this.model.get("DATE_REPORTS");
+      elem=$("#TIME_REPORTS",table);
+      elem.html(sec2clock(TIME_REPORTS)+" ("+DATE_REPORTS+")");
+      elem.removeAttr("id");
+      //total_time = sum (*)
+      let total_time= TIME_MYSQLCREATE+TIME_TRF+TIME_RENUMB+TIME_REDUND+
+                      TIME_PROCLU+TIME_JOINCLUST+TIME_DB_INSTERT_REFS+
+                      TIME_DB_INSTERT_READS+TIME_WRITE_FLANKS+
+                      TIME_MAP_FLANKS+TIME_MAP_REFFLANKS+
+                      TIME_MAP_INSERT+TIME_EDGES+TIME_INDEX_PCR+
+                      TIME_PCR_DUP+TIME_MAP_DUP+TIME_VNTR_PREDICT+
+                      TIME_ASSEMBLYREQ+TIME_REPORTS;
+      elem=$("#total_time",table);
+      elem.html(sec2clock(total_time));
+      elem.removeAttr("id");
+      this.$el.append(table);
+    }
+  });
+  </script>
+  <!-- Reports_table template -->
+  <template id="Reports_table_template">
+    <table class="table table-hover table-bordered table-condensed">
+      <tbody>
+        <ul class="list-group list-condensed">
+          <li class="list-group-item">
+            <a id="span_latex" href='/{database}/file/{database}.span{N_MIN_SUPPORT}.tex'>
+              span_latex<br/>
+              html=span{N_MIN_SUPPORT} latex tex<br/>
+              href=/{database}/file/{database}.span{N_MIN_SUPPORT}.tex
+            </a>
+          </li>
+          <li class="list-group-item">
+            <a id="dist_txt" href='/{database}/file/{database}.span{N_MIN_SUPPORT}.txt'>
+              dist_txt<br/>
+              html=span{N_MIN_SUPPORT} distributions txt<br/>
+              href=/{database}/file/{database}.span{N_MIN_SUPPORT}.txt
+            </a>
+          </li>
+          <li class="list-group-item">
+            <a id="pat_size_png" href='/{database}/file/{database}.span{N_MIN_SUPPORT}.psize.png'>
+              pat_size_png<br/>
+              html=span{N_MIN_SUPPORT} pattern size distributions png<br/>
+              href=/{database}/file/{database}.span{N_MIN_SUPPORT}.psize.png
+            </a>
+          </li>
+          <li class="list-group-item">
+            <a id="arr_size_png" href='/{database}/file/{database}.span{N_MIN_SUPPORT}.asize.png'>
+              arr_size_png<br/>
+              html=span{N_MIN_SUPPORT} array size distributions png<br/>
+              href=/{database}/file/{database}.span{N_MIN_SUPPORT}.asize.png
+            </a>
+          </li>
+          <li class="list-group-item">
+            <a id="report_vcf" href='/{database}/file/{database}.span{N_MIN_SUPPORT}.vcf'>
+              report_vcf<br/>
+              html=span{N_MIN_SUPPORT} report vcf<br/>
+              href=/{database}/file/{database}.span{N_MIN_SUPPORT}.vcf
+            </a>
+          </li>
+          <li class="list-group-item">
+            <a id="all_report_vcf" href='/{database}/file/{database}.allwithsupport.span{N_MIN_SUPPORT}.vcf'>
+              all_report_vcf<br/>
+              html=span{N_MIN_SUPPORT} all with support report vcf (both vntr and nonvntr)<br/>
+              href=/{database}/file/{database}.allwithsupport.span{N_MIN_SUPPORT}.vcf
+            </a>
+          </li>
+          <li class="list-group-item">
+            <a id="pcr_dup_txt" href='/{database}/file/{database}.pcr_dup.txt'>
+              pcr_dup_txt<br/>
+              html=list of pcr duplicates removed (ref to readTR links)<br/>
+              href=/{database}/file/{database}.pcr_dup.txt
+            </a>
+          </li>
+          <li class="list-group-item">
+            <a id="ref_ties_txt" href='/{database}/file/{database}.ties.txt'>
+              ref_ties_txt<br/>
+              html=list of references not mapped due to all reads being marked as ties<br/>
+              href=/{database}/file/{database}.ties.txt
+            </a>
+          </li>
+          <li class="list-group-item">
+            <a id="entry_ties_txt" href='/{database}/file/{database}.ties_entries.txt'>
+              entry_ties_txt<br/>
+              html=list of entries not mapped due to all reads being marked as ties (ref to readTR links)<br/>
+              href=/{database}/file/{database}.ties_entries.txt
+            </a>
+          </li>
+          <li class="list-group-item">
+            <a id="map_dup_txt" href='/{database}/file/{database}.map_dup.txt'>
+              map_dup_txt<br/>
+              log of removed reads because TRs from the same read map to different (not closely located) references<br/>
+              href=/{database}/file/{database}.map_dup.txt
+            </a>
+          </li>
+        </ul>
+      </tbody>
+    </table>
+  </template>
+  <!-- Reports_table View object -->
+  <script>
+  let ReportsTableView = Backbone.View.extend({
+    el: "#Reports",
+    template: $("#Reports_table_template").html(),
+    render: function (){
+      let table=$.parseHTML(this.template);
+      let elem;
+      database=this.model.database;
+      N_MIN_SUPPORT=this.model.get("N_MIN_SUPPORT");
+      //span_latex
+      elem=$("#span_latex",table);
+      elem.attr("href",sprintf("/%s/file/%s.span%s.tex",database,database,N_MIN_SUPPORT));
+      elem.html(sprintf("span%s latex",N_MIN_SUPPORT));
+      elem.removeAttr("id");
+      //dist_txt
+      elem=$("#dist_txt",table);
+      elem.attr("href",sprintf("/%s/file/%s.span%s.txt",database,database,N_MIN_SUPPORT));
+      elem.html(sprintf("span%s distributions txt",N_MIN_SUPPORT));
+      elem.removeAttr("id");
+      //pat_size_png
+      elem=$("#pat_size_png",table);
+      elem.attr("href",sprintf("/%s/file/%s.span%s.psize.png",database,database,N_MIN_SUPPORT));
+      elem.html(sprintf("span%s pattern size distributions png",N_MIN_SUPPORT));
+      elem.removeAttr("id");
+      //arr_size_png
+      elem=$("#arr_size_png",table);
+      elem.attr("href",sprintf("/%s/file/%s.span%s.asize.png",database,database,N_MIN_SUPPORT));
+      elem.html(sprintf("span%s array size distributions png",N_MIN_SUPPORT));
+      elem.removeAttr("id");
+      //report_vcf
+      elem=$("#report_vcf",table);
+      elem.attr("href",sprintf("/%s/file/%s.span%s.vcf",database,database,N_MIN_SUPPORT));
+      elem.html(sprintf("span%s report vcf",N_MIN_SUPPORT));
+      elem.removeAttr("id");
+      //all_report_vcf
+      elem=$("#all_report_vcf",table);
+      elem.attr("href",sprintf("/%s/file/%s.allwithsupport.span%s.vcf",database,database,N_MIN_SUPPORT));
+      elem.html(sprintf("span%s all with support report vcf (both vntr and nonvntr)",N_MIN_SUPPORT));
+      elem.removeAttr("id");
+      //pcr_dup_txt
+      elem=$("#pcr_dup_txt",table);
+      elem.attr("href",sprintf("/%s/file/%s.pcr_dup.txt",database,database));
+      elem.html("list of pcr duplicates removed (ref to readTR links)");
+      elem.removeAttr("id");
+      //ref_ties_txt
+      elem=$("#ref_ties_txt",table);
+      elem.attr("href",sprintf("/%s/file/%s.ties.txt",database,database));
+      elem.html("list of references not mapped due to all reads being marked as ties");
+      elem.removeAttr("id");
+      //entry_ties_txt
+      elem=$("#entry_ties_txt",table);
+      elem.attr("href",sprintf("/%s/file/%s.ties_entries.txt",database,database));
+      elem.html("list of entries not mapped due to all reads being marked as ties (ref to readTR links)");
+      elem.removeAttr("id");
+      //map_dup_txt
+      elem=$("#map_dup_txt",table);
+      elem.attr("href",sprintf("/%s/file/%s.map_dup.txt",database,database));
+      elem.html("log of removed reads because TRs from the same read map to different (not closely located) references");
+      elem.removeAttr("id");
+      this.$el.append(table);
+    }
+  });
+  </script>
+  <!-- StatsModel -->
+  <script>
+  let StatsModel = Backbone.Model.extend({
+    url: function(){
+      return sprintf('/restful/%s/stats',database);
+    },
+  });
+  </script>
+  <!-- Main: Rendering Views -->
+  <script>
+  var database="{{ database }}"; //Jinja template, filled in by server
+  //DB title
+  $("#db-name").html(database);
+  //Main Navigation
+  let MainNav = new BackboneWidget.MainNavView({
+    el:"#main-nav",
+    current_page:"Stats",
+    model: new Backbone.Collection([{name:"Home",link:'/'},
+                                    {name:"Stats",link:sprintf('/%s/stats',database)},
+                                    {name:"Cluster",link:sprintf('/%s/cluster',database)},
+                                    {name:"Reference",link:sprintf('/%s/reference',database)}
+                                    ])
+  });
+  MainNav.render();
+  //Section Nav
+  let SectionNav=new BackboneWidget.SectionNavView({
+    el:"#section-navbar",
+    offset_top:180,
+    model: new Backbone.Collection([{name:"Top",id:"top"},
+                                    {name:"Run parameters",id:"Run_parameters"},
+                                    {name:"PROFILE CLUSTERING",id:"PROFILE_CLUSTERING"},
+                                    {name:"FLANK ALIGNMENTS",id:"FLANK_ALIGNMENTS"},
+                                    {name:"PIPELINE TIME",id:"PIPELINE_TIME"},
+                                    {name:"Reports",id:"Reports"}
+                                    ])
+  });
+  SectionNav.render();
+  //Stats Tables
+  let Stats=new StatsModel();
+  let RunParametersTable=new RunParametersTableView({model:Stats});
+  let ProfileClusteringTable=new ProfileClusteringTableView({model:Stats});
+  let FlankAlignmentTable=new FlankAlignmentsTableView({model:Stats});
+  let PipelineTimeTable=new PipelineTimeTableView({model:Stats});
+  let ReportsTable=new ReportsTableView({model:Stats});
+  Stats.fetch().done(function(){
+    RunParametersTable.render();
+    ProfileClusteringTable.render();
+    FlankAlignmentTable.render();
+    PipelineTimeTable.render();
+    ReportsTable.render();
+    $("body").scrollspy("refresh");
+  });
+  </script>
+</body>
+</html>
