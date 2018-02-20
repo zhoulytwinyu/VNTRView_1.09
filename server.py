@@ -22,6 +22,7 @@ except FileExistsError as e:
 DB_FOLDER=os.path.join(SCRIPT_DIR,"db")
 
 app=Flask(__name__)
+
 ###############################END SET UP###############################
 
 ############################Helper functions############################
@@ -79,12 +80,16 @@ def connection_cache(function):
       return conn
   return new_function
 
+_create_temp_views_sql=read_file(os.path.join(SCRIPT_DIR,"sql","temp_views.sql"))
 @connection_cache
 def connect_to_db(database):
   if (not os.path.isfile(database)):
     raise FileNotFoundError
   conn=sqlite3.connect(database)
   conn.row_factory=sqlite3.Row
+  cursor=conn.cursor()
+  cursor.executescript(_create_temp_views_sql)
+  conn.commit()
   return conn
 ##########################END Helper functions##########################
 

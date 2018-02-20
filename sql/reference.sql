@@ -1,20 +1,19 @@
 SELECT rid as Reference_ID,
   clusterid as Cluster_ID,
-  (SELECT COUNT(map.readid)+1
+  (SELECT COUNT(*)
     FROM map
     WHERE map.refid=rid
   ) Mapped_Read_Count,
-  (SELECT COUNT(rank.readid)+1
-    FROM rank
-    WHERE rank.refid=rid
-  ) RankBest_Read_Count,
-  (SELECT COUNT(rankflank.readid)+1
-    FROM rankflank
-    WHERE rankflank.refid=rid
+  (SELECT COUNT(*)
+    FROM best_by_profile_map
+    WHERE refid=rid
+  ) RankBest_Read_Count, -- OR ProfileBest
+  (SELECT COUNT(*)
+    FROM best_by_flank_map
+    WHERE refid=rid
   ) FlankBest_Read_Count,
-  (SELECT COUNT(rankflank.readid)+1
-    FROM rankflank
-      JOIN rank USING (refid,readid)
+  (SELECT COUNT(*)
+    FROM best_by_both_map
     WHERE refid=rid
   ) BBB_Read_Count,
   reserved as VNTR_Copy_Diff,
