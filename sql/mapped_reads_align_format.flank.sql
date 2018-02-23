@@ -9,10 +9,10 @@ SELECT
   direction,
   clusterlnk.reserved,
   clusterlnk.reserved2,
-  (head || " (f=" || ROUND(fscore,4) || ") " )
+  (head || " (f=" || ROUND(rankflank.score,4) || ") " )
   FROM fasta_reads
     JOIN replnk USING(sid)
     JOIN clusterlnk ON rid=repeatid
-    JOIN best_by_flank_map ON replnk.rid=readid
+    JOIN rankflank ON rid=readid
   WHERE refid={reference_id}
   {limit}

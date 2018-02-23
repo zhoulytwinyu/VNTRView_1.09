@@ -5,15 +5,16 @@ SELECT rid as Reference_ID,
     WHERE map.refid=rid
   ) Mapped_Read_Count,
   (SELECT COUNT(*)
-    FROM best_by_profile_map
-    WHERE refid=rid
+    FROM rank
+    WHERE rank.refid=rid
   ) RankBest_Read_Count, -- OR ProfileBest
   (SELECT COUNT(*)
-    FROM best_by_flank_map
-    WHERE refid=rid
+    FROM rankflank
+    WHERE rankflank.refid=rid
   ) FlankBest_Read_Count,
   (SELECT COUNT(*)
-    FROM best_by_both_map
+    FROM rank
+      JOIN rankflank USING(refid,readid)
     WHERE refid=rid
   ) BBB_Read_Count,
   reserved as VNTR_Copy_Diff,

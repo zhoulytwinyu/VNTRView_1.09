@@ -11,6 +11,8 @@ from lib import gff3_writer
 ##################################SET UP################################
 SCRIPT_DIR=os.path.dirname(os.path.realpath(__file__))
 
+os.environ["PATH"]=os.environ["PATH"]+":"+os.path.join(SCRIPT_DIR,"bin")
+
 # Make temp folder
 TMP_FOLDER=os.path.join(SCRIPT_DIR,"tmp")
 try:
@@ -80,7 +82,6 @@ def connection_cache(function):
       return conn
   return new_function
 
-_create_temp_views_sql=read_file(os.path.join(SCRIPT_DIR,"sql","temp_views.sql"))
 @connection_cache
 def connect_to_db(database):
   if (not os.path.isfile(database)):
@@ -88,7 +89,6 @@ def connect_to_db(database):
   conn=sqlite3.connect(database)
   conn.row_factory=sqlite3.Row
   cursor=conn.cursor()
-  cursor.executescript(_create_temp_views_sql)
   conn.commit()
   return conn
 ##########################END Helper functions##########################
@@ -426,7 +426,7 @@ def restful_get_alignment(database):
   fh.write('\n'.join(data))
   fh.close()
   #Return results
-  aln=subprocess.run(["cat","test.png"],stdout=subprocess.PIPE)
+  aln=subprocess.run(["aln",fh.name,"0","1","20","vntrview"],stdout=subprocess.PIPE)
   response=make_response(aln.stdout)
   response.headers["Content-Type"]="image/png"
   response.headers["Content-Disposition"]="""attachment; filename="{}-{}-{}.png" """.format(database,reference_id,criteria)
