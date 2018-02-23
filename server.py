@@ -426,7 +426,7 @@ def restful_get_alignment(database):
   fh.write('\n'.join(data))
   fh.close()
   #Return results
-  aln=subprocess.run(["aln",fh.name,"0","1","20","vntrview"],stdout=subprocess.PIPE)
+  aln=subprocess.run(["aln",fh.name,"0","1",str(maxrepr),"vntrview"],stdout=subprocess.PIPE)
   response=make_response(aln.stdout)
   response.headers["Content-Type"]="image/png"
   response.headers["Content-Disposition"]="""attachment; filename="{}-{}-{}.png" """.format(database,reference_id,criteria)
