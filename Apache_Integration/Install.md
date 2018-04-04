@@ -14,9 +14,16 @@ On FreeBSD install mod_wsgi by compiling the www/mod_wsgi port or by using pkg_a
 `pkg install ap22-mod_wsgi2`
 
 # Configure virtual host
-Copy the content of VNTRView_1.09.conf into apache vhosts.conf.
+Copy VNTRView_1.09.conf into /etc/apache2/sites-available/.
 Adjust the script where appropriate.
 
 # Expose flask wsgi server for apache
 Copy VNTRView_1.09.wsgi to /var/www/VNTRView_1.09/VNTRView_1.09.wsgi or wherever VNTRView_1.09.conf points to (section WSGIScriptAlias)
 Adjust the script where appropriate.
+
+# Enable the site and restart apache
+`
+sudo a2ensite VNTRView_1.09.conf
+sudo service apache2 restart
+`
+You may need to further configure the host file etc to give the website a working url.
