@@ -20,6 +20,12 @@ try:
 except FileExistsError as e:
   assert os.path.isdir(TMP_FOLDER)
   pass
+# Make temp folder in /tmp to be used by aln
+try:
+  os.mkdir("/tmp/vntrview")
+except FileExistsError as e:
+  assert os.path.isdir("/tmp/vntrview")
+  pass
 
 DB_FOLDER=os.path.join(SCRIPT_DIR,"db")
 
@@ -86,7 +92,7 @@ def connection_cache(function):
 def connect_to_db(database):
   if (not os.path.isfile(database)):
     raise FileNotFoundError
-  conn=sqlite3.connect(database)
+  conn=sqlite3.connect(database, check_same_thread=False)
   conn.row_factory=sqlite3.Row
   cursor=conn.cursor()
   conn.commit()
