@@ -3,7 +3,7 @@ from flask import Flask,request,send_file,jsonify,render_template,redirect, make
 from collections import deque
 import sqlite3
 import os
-import io
+import shutil
 import sys
 import subprocess
 import tempfile
@@ -19,12 +19,6 @@ try:
   os.mkdir(TMP_FOLDER)
 except FileExistsError as e:
   assert os.path.isdir(TMP_FOLDER)
-  pass
-# Make temp folder in /tmp to be used by aln
-try:
-  os.mkdir("/tmp/vntrview")
-except FileExistsError as e:
-  assert os.path.isdir("/tmp/vntrview")
   pass
 
 DB_FOLDER=os.path.join(SCRIPT_DIR,"db")
@@ -432,11 +426,13 @@ def restful_get_alignment(database):
   fh.write('\n'.join(data))
   fh.close()
   #Return results
-  aln=subprocess.run(["aln",fh.name,"0","1",str(maxrepr),"vntrview"],stdout=subprocess.PIPE)
+  fd=tempfile.mkdtemp(prefix="vntrview",dir="/tmp")
+  print(fd)
+  aln=subprocess.run(["aln",fh.name,"0","1",str(maxrepr),os.path.basename(fd)],stdout=subprocess.PIPE)
   response=make_response(aln.stdout)
   response.headers["Content-Type"]="image/png"
   response.headers["Content-Disposition"]="""attachment; filename="{}-{}-{}.png" """.format(database,reference_id,criteria)
-  os.remove(fh.name)
+  shutil.rmtree(fd, ignore_errors=False)
   return response
 
 ############################RESTFul backend#############################
